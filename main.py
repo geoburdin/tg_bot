@@ -3,7 +3,7 @@ import requests
 from time import sleep
 import telebot
 
-TOKEN = "1375344782:AAFqdxa-AERRVWNKixPtHfvySv9Kt-yDlLU"
+TOKEN = ""
 bot = telebot.TeleBot(TOKEN)
 
 keyboard1 = telebot.types.ReplyKeyboardMarkup(True, True)
