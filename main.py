@@ -1,54 +1,81 @@
-from lxml import html
 import requests
-from time import sleep
-import telebot
+from lxml import html
+import telebot, time
 
-TOKEN = ""
+TOKEN = "1375344782:AAFqdxa-AERRVWNKixPtHfvySv9Kt-yDlLU"
 bot = telebot.TeleBot(TOKEN)
 
 keyboard1 = telebot.types.ReplyKeyboardMarkup(True, True)
-keyboard1.row('/start', '/add_item', '/delete_item', '/stop')
-keyboard1.row('/look_at_my_list')
+
+keyboard1.row('/hello', '/look_at_my_list')
+keyboard1.row('/start')
+keyboard1.row('/add_item', '/delete_item')
+
 
 def check(url):
     headers = {
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.90 Safari/537.36'}
+        'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:66.0) Gecko/20100101 Firefox/66.0", "Accept-Encoding":"gzip, deflate", "Accept":"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "DNT":"1","Connection":"close", "Upgrade-Insecure-Requests":"1"}
 
     # adding headers to show that you are
-        # a browser who is sending GET request
-    page = requests.get(url, headers=headers)
-    for i in range(20):
-            # because continuous checks in
-            # milliseconds or few seconds
-            # blocks your request
-        sleep(5)
+    # a browser who is sending GET request
 
-                # parsing the html content
+    page = requests.get(url, headers=headers)
+    for i in range(5):
+        # because continuous checks in
+        # milliseconds or few seconds
+        # blocks your request
+        time.sleep(10)
+
+        # parsing the html content
         doc = html.fromstring(page.content)
 
-                # checking availaility
+        # checking availaility
         XPATH_AVAILABILITY = '//div[@id ="availability"]//text()'
         RAw_AVAILABILITY = doc.xpath(XPATH_AVAILABILITY)
         AVAILABILITY = ''.join(RAw_AVAILABILITY).strip() if RAw_AVAILABILITY else None
+        if AVAILABILITY == 'No disponible.' or 'Disponible a través de estos vendedores.':
+            AVAILABILITY = None
         return AVAILABILITY
+
 
 items=[]
 
-@bot.message_handler(commands=["start"])
+
+@bot.message_handler(commands=["hello"])
 def send_welcome(message):
     id_chat = message.chat.id
-    bot.send_message(id_chat, "Hello. I`m amazon bot", reply_markup=keyboard1)
+    bot.send_message(id_chat, "Hello. I`m amazon bot \n Fulfill the list and press start", reply_markup=keyboard1)
 
 
 @bot.message_handler( commands= ["add_item"])
 def add_item(message):
     id_chat = message.chat.id
     msg = bot.reply_to(message, 'Send me a link please')
-    bot.register_next_step_handler(msg,add)
-
+    bot.register_next_step_handler(msg, add)
 
 def add(message):
     items.append(message.text)
+
+import threading
+@bot.message_handler(commands=["start"])
+def start(message):
+
+    t = threading.Thread(target=handle, args=(message,))
+    t.start()
+
+def handle(message):
+    id_chat = message.chat.id
+    bot.send_message(id_chat, "Ok, I`m looking at items every 10 min", reply_markup=keyboard1)
+
+    while True:
+        time.sleep(600)
+
+        for item in items:
+
+            if check(item) != None :
+                bot.reply_to(message, "I have something for you: \n" + item, reply_markup=keyboard1)
+                items.remove(item)
+
 
 
 @bot.message_handler( commands= ["delete_item"])
@@ -62,18 +89,17 @@ def delete(message):
     items.remove(message.text)
 
 
-
-@bot.message_handler( commands= ["stop"])
-def stop_repeat(message):
-    id_chat = message.chat.id
-    bot.stop_bot()
-
-
 @bot.message_handler( commands= ["look_at_my_list"])
 def show_list(message):
     id_chat = message.chat.id
     for item in items:
         msg = bot.reply_to(message, str(item))
+    bot.reply_to(message, 'That`s all from the list')
 
+while True:
+    try:
+        bot.polling()
 
-bot.polling()
+    except Exception as e:
+
+        time.sleep(60)
