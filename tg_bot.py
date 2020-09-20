@@ -1,6 +1,8 @@
 import requests
 from lxml import html
 import telebot, time
+import threading
+
 
 TOKEN = "1375344782:AAFqdxa-AERRVWNKixPtHfvySv9Kt-yDlLU"
 bot = telebot.TeleBot(TOKEN)
@@ -10,7 +12,6 @@ keyboard1 = telebot.types.ReplyKeyboardMarkup(True, True)
 keyboard1.row('/hello', '/look_at_my_list')
 keyboard1.row('/start')
 keyboard1.row('/add_item', '/delete_item')
-
 
 def check(url):
     headers = {
@@ -50,31 +51,27 @@ def add_item(message):
     id_chat = message.chat.id
     msg = bot.reply_to(message, 'Send me a link please')
     bot.register_next_step_handler(msg, add)
-
 def add(message):
     items.append(message.text)
 
 
-import threading
 @bot.message_handler(commands=["start"])
 def start(message):
+    x = open("message.txt", 'w')
+    x.write(str(message.chat.id))
+    x.close()
+    bot.send_message(message.chat.id, "Ok, I`m looking at items every 10 min", reply_markup=keyboard1)
 
-    t = threading.Thread(target=handle, args=(message,))
-    t.start()
 
-def handle(message):
-    id_chat = message.chat.id
-    bot.send_message(id_chat, "Ok, I`m looking at items every 10 min", reply_markup=keyboard1)
+
+def handle(chat_id):
+
 
     while True:
-
         time.sleep(600)
-
         for item in items:
-
-
             if check(item) != None :
-                bot.reply_to(message, "I have something for you: \n" + item, reply_markup=keyboard1)
+                bot.send_message(chat_id, "I have something for you: \n" + item, reply_markup=keyboard1)
                 items.remove(item)
 
 
@@ -108,9 +105,6 @@ def show_list(message):
     bot.send_document(message.chat.id, f)
     f.close()
 
-
-
-
 items=[]
 while True:
     try:
@@ -120,7 +114,16 @@ while True:
             items.append(item)
         print(items)
         lists.close()
-        bot.polling()
+        try:
+            x = open("message.txt", 'r')
+            chatid = x.readline()
+            print(chatid)
+            x.close()
+            t = threading.Thread(target=handle, args=(chatid,))
+            t.start()
+        except Exception as er:
+            print(er)
+        bot.infinity_polling(True)
 
     except Exception as e:
         print(e)
